@@ -47,3 +47,11 @@ const WallpaperSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model("Wallpaper", WallpaperSchema);
+
+// const mongoose = require("mongoose");
+
+// const WallpaperSchema = new mongoose.Schema({
+//   title: String,
+//   imageUrl: String,
+// });
+// module.exports = mongoose.model("Wallpaper", WallpaperSchema);

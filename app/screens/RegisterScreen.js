@@ -25,15 +25,19 @@ const RegisterScreen = ({ navigation }) => {
   // Validate form inputs
   const validateForm = () => {
     const errors = {};
-    
+
     if (name.trim() === "") errors.name = "Name is required";
     if (email.trim() === "") errors.email = "Email is required";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Enter a valid email";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      errors.email = "Enter a valid email";
     if (password.trim() === "") errors.password = "Password is required";
-    if (password.length < 6) errors.password = "Password must be at least 6 characters";
-    if (confirmPassword.trim() === "") errors.confirmPassword = "Please confirm your password";
-    if (password !== confirmPassword) errors.confirmPassword = "Passwords do not match";
-    
+    if (password.length < 6)
+      errors.password = "Password must be at least 6 characters";
+    if (confirmPassword.trim() === "")
+      errors.confirmPassword = "Please confirm your password";
+    if (password !== confirmPassword)
+      errors.confirmPassword = "Passwords do not match";
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -46,6 +50,8 @@ const RegisterScreen = ({ navigation }) => {
       if (result.success) {
         // Registration successful - navigate or show success message
         // Navigation is likely handled by the AuthContext already
+        // OTP screen
+        navigation.navigate("OTP", { email });
       }
     } catch (err) {
       Alert.alert("Registration Failed", "Please try again later.");
@@ -53,20 +59,34 @@ const RegisterScreen = ({ navigation }) => {
   };
 
   // Display an input field with error handling
-  const renderInput = (label, placeholder, value, setValue, keyboardType = "default", secureTextEntry = false, errorKey) => (
+  const renderInput = (
+    label,
+    placeholder,
+    value,
+    setValue,
+    keyboardType = "default",
+    secureTextEntry = false,
+    errorKey
+  ) => (
     <View style={styles.inputContainer}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         style={[styles.input, formErrors[errorKey] && styles.inputError]}
         placeholder={placeholder}
         keyboardType={keyboardType}
-        autoCapitalize={keyboardType === "email-address" ? "none" : label === "Full Name" ? "words" : "none"}
+        autoCapitalize={
+          keyboardType === "email-address"
+            ? "none"
+            : label === "Full Name"
+            ? "words"
+            : "none"
+        }
         secureTextEntry={secureTextEntry}
         value={value}
         onChangeText={(text) => {
           setValue(text);
           if (formErrors[errorKey]) {
-            setFormErrors({...formErrors, [errorKey]: null});
+            setFormErrors({ ...formErrors, [errorKey]: null });
           }
         }}
       />
@@ -95,13 +115,45 @@ const RegisterScreen = ({ navigation }) => {
               </View>
             )}
 
-            {renderInput("Full Name", "Enter your name", name, setName, "default", false, "name")}
-            {renderInput("Email", "Enter your email", email, setEmail, "email-address", false, "email")}
-            {renderInput("Password", "Enter your password", password, setPassword, "default", true, "password")}
-            {renderInput("Confirm Password", "Confirm your password", confirmPassword, setConfirmPassword, "default", true, "confirmPassword")}
+            {renderInput(
+              "Full Name",
+              "Enter your name",
+              name,
+              setName,
+              "default",
+              false,
+              "name"
+            )}
+            {renderInput(
+              "Email",
+              "Enter your email",
+              email,
+              setEmail,
+              "email-address",
+              false,
+              "email"
+            )}
+            {renderInput(
+              "Password",
+              "Enter your password",
+              password,
+              setPassword,
+              "default",
+              true,
+              "password"
+            )}
+            {renderInput(
+              "Confirm Password",
+              "Confirm your password",
+              confirmPassword,
+              setConfirmPassword,
+              "default",
+              true,
+              "confirmPassword"
+            )}
 
-            <TouchableOpacity 
-              style={[styles.button, isLoading && styles.buttonDisabled]} 
+            <TouchableOpacity
+              style={[styles.button, isLoading && styles.buttonDisabled]}
               onPress={handleRegister}
               disabled={isLoading}
             >
