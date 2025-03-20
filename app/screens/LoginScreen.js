@@ -17,7 +17,7 @@ import { AuthContext } from "../context/AuthContext";
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  // const { login, isLoading, error } = useContext(AuthContext);
+  const { login, isLoading, error } = useContext(AuthContext);
 
   const handleLogin = () => {
     if (email.trim() === "" || password.trim() === "") {
@@ -67,13 +67,13 @@ const LoginScreen = ({ navigation }) => {
             <TouchableOpacity
               style={styles.button}
               onPress={handleLogin}
-              // disabled={isLoading}
+              disabled={isLoading}
             >
-              {/* {isLoading ? (
+              {isLoading ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
                 <Text style={styles.buttonText}>Login</Text>
-              )} */}
+              )}
             </TouchableOpacity>
 
             <View style={styles.footer}>

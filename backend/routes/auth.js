@@ -30,7 +30,8 @@ router.post('/register', [
     user = new User({
       username,
       email,
-      password
+      password,
+      role: 'user' // Default role for new users
     });
     
     // Hash password

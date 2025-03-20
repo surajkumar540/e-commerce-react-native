@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import {
   View,
   Text,
@@ -9,32 +9,72 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
+import { AuthContext } from "../context/AuthContext";
 
 const RegisterScreen = ({ navigation }) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [formErrors, setFormErrors] = useState({});
+  const { register, isLoading, error } = useContext(AuthContext);
 
-  const handleRegister = () => {
-    if (
-      name.trim() === "" ||
-      email.trim() === "" ||
-      password.trim() === "" ||
-      confirmPassword.trim() === ""
-    ) {
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      alert("Passwords do not match");
-      return;
-    }
-
-    // Call your register function here
-    console.log("User registered:", { name, email, password });
+  // Validate form inputs
+  const validateForm = () => {
+    const errors = {};
+    
+    if (name.trim() === "") errors.name = "Name is required";
+    if (email.trim() === "") errors.email = "Email is required";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Enter a valid email";
+    if (password.trim() === "") errors.password = "Password is required";
+    if (password.length < 6) errors.password = "Password must be at least 6 characters";
+    if (confirmPassword.trim() === "") errors.confirmPassword = "Please confirm your password";
+    if (password !== confirmPassword) errors.confirmPassword = "Passwords do not match";
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
+
+  const handleRegister = async () => {
+    if (!validateForm()) return;
+
+    try {
+      const result = await register(name, email, password);
+      if (result.success) {
+        // Registration successful - navigate or show success message
+        // Navigation is likely handled by the AuthContext already
+      }
+    } catch (err) {
+      Alert.alert("Registration Failed", "Please try again later.");
+    }
+  };
+
+  // Display an input field with error handling
+  const renderInput = (label, placeholder, value, setValue, keyboardType = "default", secureTextEntry = false, errorKey) => (
+    <View style={styles.inputContainer}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        style={[styles.input, formErrors[errorKey] && styles.inputError]}
+        placeholder={placeholder}
+        keyboardType={keyboardType}
+        autoCapitalize={keyboardType === "email-address" ? "none" : label === "Full Name" ? "words" : "none"}
+        secureTextEntry={secureTextEntry}
+        value={value}
+        onChangeText={(text) => {
+          setValue(text);
+          if (formErrors[errorKey]) {
+            setFormErrors({...formErrors, [errorKey]: null});
+          }
+        }}
+      />
+      {formErrors[errorKey] && (
+        <Text style={styles.errorText}>{formErrors[errorKey]}</Text>
+      )}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -49,53 +89,27 @@ const RegisterScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Full Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your name"
-                autoCapitalize="words"
-                value={name}
-                onChangeText={setName}
-              />
-            </View>
+            {error && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.globalError}>{error}</Text>
+              </View>
+            )}
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-              />
-            </View>
+            {renderInput("Full Name", "Enter your name", name, setName, "default", false, "name")}
+            {renderInput("Email", "Enter your email", email, setEmail, "email-address", false, "email")}
+            {renderInput("Password", "Enter your password", password, setPassword, "default", true, "password")}
+            {renderInput("Confirm Password", "Confirm your password", confirmPassword, setConfirmPassword, "default", true, "confirmPassword")}
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your password"
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Confirm Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Confirm your password"
-                secureTextEntry
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-              />
-            </View>
-
-            <TouchableOpacity style={styles.button} onPress={handleRegister}>
-              <Text style={styles.buttonText}>Sign Up</Text>
+            <TouchableOpacity 
+              style={[styles.button, isLoading && styles.buttonDisabled]} 
+              onPress={handleRegister}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.buttonText}>Sign Up</Text>
+              )}
             </TouchableOpacity>
 
             <View style={styles.footer}>
@@ -114,75 +128,95 @@ const RegisterScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ffffff",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "#fff",
   },
   keyboardAvoid: {
     flex: 1,
-    width: "100%",
   },
   scrollView: {
     flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    padding: 20,
   },
   header: {
-    marginBottom: 20,
+    marginBottom: 30,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "bold",
+    color: "#333",
     marginBottom: 10,
-    color: "#333333",
   },
   subtitle: {
     fontSize: 16,
-    color: "#666666",
+    color: "#666",
   },
   form: {
-    width: "80%",
+    width: "100%",
   },
   inputContainer: {
     marginBottom: 20,
   },
   label: {
+    marginBottom: 8,
     fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 5,
-    color: "#333333",
+    fontWeight: "500",
+    color: "#333",
   },
   input: {
     borderWidth: 1,
-    borderColor: "#cccccc",
-    borderRadius: 5,
-    padding: 10,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 15,
     fontSize: 16,
-    color: "#333333",
+    backgroundColor: "#f9f9f9",
+  },
+  inputError: {
+    borderColor: "#ff3b30",
+  },
+  errorText: {
+    color: "#ff3b30",
+    fontSize: 14,
+    marginTop: 5,
+  },
+  errorContainer: {
+    backgroundColor: "#ffeaea",
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  globalError: {
+    color: "#ff3b30",
+    textAlign: "center",
+    fontSize: 14,
   },
   button: {
-    backgroundColor: "#007bff",
+    backgroundColor: "#0066cc",
+    borderRadius: 8,
     padding: 15,
-    borderRadius: 5,
     alignItems: "center",
+    marginTop: 10,
+  },
+  buttonDisabled: {
+    backgroundColor: "#99c2ff",
   },
   buttonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "bold",
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
   },
   footer: {
     flexDirection: "row",
-    marginTop: 20,
+    justifyContent: "center",
+    marginTop: 30,
   },
   footerText: {
+    color: "#666",
     fontSize: 16,
-    color: "#666666",
   },
   signupText: {
+    color: "#0066cc",
     fontSize: 16,
-    color: "#007bff",
-    fontWeight: "bold",
+    fontWeight: "600",
   },
 });
 
