@@ -46,20 +46,21 @@ router.post(
       const newWallpaper = new Wallpaper({
         title,
         description,
-        imageUrl: req.file.path,
-        cloudinaryPublicId: req.file.filename,
+        imageUrl: req.file.path, // Cloudinary URL
+        cloudinaryPublicId: req.file.filename, // Cloudinary Public ID
         category,
       });
 
       const wallpaper = await newWallpaper.save();
       res.json(wallpaper);
     } catch (err) {
-      console.error(err.message);
-      res.status(500).send("Server error");
+      console.error("Upload error:", err);
+      res.status(500).json({ message: "Server error" });
     }
   }
 );
 
+module.exports = router;
 // Update a wallpaper (Admin only)
 router.put(
   "/:id",

@@ -28,7 +28,9 @@
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
-        "MEDIA_LIBRARY"
+        "MEDIA_LIBRARY",
+        "ACCESS_MEDIA_LOCATION",
+        "MANAGE_EXTERNAL_STORAGE"
       ],
       "package": "com.yourcompany.wallpaperapp"
     },

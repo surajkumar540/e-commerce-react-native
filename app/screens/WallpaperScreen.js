@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import { useNavigation } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
 const IMAGE_SIZE = width / 2 - 20;
@@ -84,7 +85,7 @@ const WallpaperScreen = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [downloading, setDownloading] = useState(null);
-
+  const navigation = useNavigation();
   // Fetch wallpapers from API
   const fetchWallpapers = useCallback(async () => {
     setLoading(true);
@@ -92,7 +93,7 @@ const WallpaperScreen = () => {
 
     try {
       // Replace with your actual API endpoint
-      const response = await fetch("http://192.168.1.41:5000/api/wallpapers");
+      const response = await fetch("http://192.168.1.41:5000/api/get-images");
 
       // Check if the response is valid
       if (!response.ok) {
@@ -216,7 +217,23 @@ const WallpaperScreen = () => {
   const ListHeaderComponent = useCallback(
     () => (
       <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>Featured Wallpapers</Text>
+        <View style={{ flex: 1 }}>
+          {/* Navigate Button */}
+          <TouchableOpacity
+            style={{
+              backgroundColor: "#007AFF",
+              padding: 12,
+              borderRadius: 8,
+              alignItems: "center",
+              margin: 15,
+            }}
+            onPress={() => navigation.navigate("UploadImage")}
+          >
+            <Text style={{ color: "#fff", fontSize: 16, fontWeight: "bold" }}>
+              Upload Image
+            </Text>
+          </TouchableOpacity>
+        </View>
         <Text style={styles.headerSubtitle}>
           {error
             ? "Using offline wallpapers"
@@ -295,6 +312,7 @@ const styles = StyleSheet.create({
   flatList: {
     paddingHorizontal: 8,
     paddingBottom: 20,
+    paddingTop: 20,
   },
   card: {
     flex: 1,
