@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Platform,
   StyleSheet,
   Alert,
+  ScrollView,
 } from "react-native";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
@@ -80,49 +81,149 @@ const STATIC_WALLPAPERS = [
   },
 ];
 
+// Predefined categories (can be fetched from backend if needed)
+const DEFAULT_CATEGORIES = [
+  "All",
+  "Nature",
+  "Abstract",
+  "Animals",
+  "Technology",
+  "Food",
+  "Travel",
+];
+
 const WallpaperScreen = () => {
   const [wallpapers, setWallpapers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [downloading, setDownloading] = useState(null);
   const navigation = useNavigation();
-  // Fetch wallpapers from API
-  const fetchWallpapers = useCallback(async () => {
-    setLoading(true);
-    setError(false);
+  const flatListRef = useRef(null);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Categories state
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [selectedCategory, setSelectedCategory] = useState("All");
+
+  // Fetch categories from backend (optional)
+  const fetchCategories = useCallback(async () => {
     try {
-      // Replace with your actual API endpoint
-      const response = await fetch("http://192.168.1.41:5000/api/get-images");
-
-      // Check if the response is valid
-      if (!response.ok) {
-        throw new Error("Failed to fetch wallpapers");
-      }
-
-      const data = await response.json();
-
-      // Check if we received valid data
-      if (data && Array.isArray(data) && data.length > 0) {
-        setWallpapers(data);
-      } else {
-        // If no valid data, fall back to static wallpapers
-        setWallpapers(STATIC_WALLPAPERS);
+      const response = await fetch("http://192.168.1.41:5000/api/categories");
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.categories && Array.isArray(data.categories)) {
+          // Always include "All" as the first option
+          setCategories(["All", ...data.categories]);
+        }
       }
     } catch (error) {
-      console.error("Error fetching wallpapers:", error);
-      setError(true);
-      // Fall back to static wallpapers on error
-      setWallpapers(STATIC_WALLPAPERS);
-    } finally {
-      setLoading(false);
+      console.error("Error fetching categories:", error);
+      // Keep using default categories on error
     }
   }, []);
 
-  // Load data on component mount
+  // Fetch wallpapers from API with pagination and category filter
+  const fetchWallpapers = useCallback(
+    async (page = 1, category = "All", shouldAppend = false) => {
+      if (page === 1) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+      setError(false);
+
+      try {
+        // Add pagination and category parameters to the API request
+        const categoryParam = category === "All" ? "" : `&category=${category}`;
+        const response = await fetch(
+          `http://192.168.1.41:5000/api/get-images?page=${page}&limit=10${categoryParam}`
+        );
+
+        // Check if the response is valid
+        if (!response.ok) {
+          throw new Error("Failed to fetch wallpapers");
+        }
+
+        const data = await response.json();
+
+        // Check if we received valid data
+        if (data && data.images && Array.isArray(data.images)) {
+          if (shouldAppend) {
+            setWallpapers((prevWallpapers) => [
+              ...prevWallpapers,
+              ...data.images,
+            ]);
+          } else {
+            setWallpapers(data.images);
+          }
+
+          // Update pagination information
+          setCurrentPage(data.currentPage);
+          setTotalPages(data.totalPages);
+        } else {
+          // If no valid data, fall back to static wallpapers
+          let filtered = STATIC_WALLPAPERS;
+          if (category !== "All") {
+            filtered = STATIC_WALLPAPERS.filter(
+              (item) => item.category === category
+            );
+          }
+          setWallpapers(filtered);
+          setTotalPages(1);
+          setCurrentPage(1);
+        }
+      } catch (error) {
+        console.error("Error fetching wallpapers:", error);
+        setError(true);
+        // Fall back to static wallpapers on error
+        let filtered = STATIC_WALLPAPERS;
+        if (category !== "All") {
+          filtered = STATIC_WALLPAPERS.filter(
+            (item) => item.category === category
+          );
+        }
+        setWallpapers(filtered);
+        setTotalPages(1);
+        setCurrentPage(1);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    []
+  );
+
+  // Load initial data on component mount
   useEffect(() => {
-    fetchWallpapers();
-  }, [fetchWallpapers]);
+    fetchCategories();
+    fetchWallpapers(1, "All", false);
+  }, [fetchWallpapers, fetchCategories]);
+
+  // Handle category selection
+  const handleCategoryPress = useCallback(
+    (category) => {
+      if (category !== selectedCategory) {
+        setSelectedCategory(category);
+        // Reset to page 1 when changing categories
+        fetchWallpapers(1, category, false);
+        // Scroll back to top
+        if (flatListRef.current) {
+          flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+        }
+      }
+    },
+    [selectedCategory, fetchWallpapers]
+  );
+
+  // Handle loading more data when reaching the end of the list
+  const handleLoadMore = useCallback(() => {
+    if (loadingMore || currentPage >= totalPages) return;
+    fetchWallpapers(currentPage + 1, selectedCategory, true);
+  }, [fetchWallpapers, currentPage, totalPages, loadingMore, selectedCategory]);
 
   const downloadWallpaper = useCallback(async (imageUrl, id) => {
     try {
@@ -161,8 +262,8 @@ const WallpaperScreen = () => {
   }, []);
 
   const retryFetch = useCallback(() => {
-    fetchWallpapers();
-  }, [fetchWallpapers]);
+    fetchWallpapers(1, selectedCategory, false);
+  }, [fetchWallpapers, selectedCategory]);
 
   const renderItem = useCallback(
     ({ item }) => (
@@ -202,16 +303,61 @@ const WallpaperScreen = () => {
     []
   );
 
+  // Footer component for FlatList that shows loading indicator when loading more images
+  const ListFooterComponent = useCallback(() => {
+    if (!loadingMore) return null;
+
+    return (
+      <View style={styles.footerContainer}>
+        <ActivityIndicator size="small" color="#007AFF" />
+        <Text style={styles.footerText}>Loading more wallpapers...</Text>
+      </View>
+    );
+  }, [loadingMore]);
+
   const ListEmptyComponent = useCallback(
     () => (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No wallpapers available</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={retryFetch}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
+        <Text style={styles.emptyText}>
+          {loading ? "Loading..." : "No wallpapers available for this category"}
+        </Text>
+        {!loading && (
+          <TouchableOpacity style={styles.retryButton} onPress={retryFetch}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        )}
       </View>
     ),
-    [retryFetch]
+    [retryFetch, loading]
+  );
+
+  // Render category tabs
+  const renderCategoryTabs = () => (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.categoriesContainer}
+    >
+      {categories.map((category) => (
+        <TouchableOpacity
+          key={category}
+          style={[
+            styles.categoryTab,
+            selectedCategory === category && styles.selectedCategoryTab,
+          ]}
+          onPress={() => handleCategoryPress(category)}
+        >
+          <Text
+            style={[
+              styles.categoryTabText,
+              selectedCategory === category && styles.selectedCategoryTabText,
+            ]}
+          >
+            {category}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
   );
 
   const ListHeaderComponent = useCallback(
@@ -244,9 +390,20 @@ const WallpaperScreen = () => {
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         )}
+
+        {/* Category tabs */}
+        {renderCategoryTabs()}
       </View>
     ),
-    [error, retryFetch]
+    [
+      error,
+      retryFetch,
+      currentPage,
+      totalPages,
+      categories,
+      selectedCategory,
+      handleCategoryPress,
+    ]
   );
 
   return (
@@ -257,6 +414,7 @@ const WallpaperScreen = () => {
       >
         <View style={{ flex: 1 }}>
           <FlatList
+            ref={flatListRef}
             data={wallpapers}
             renderItem={renderItem}
             keyExtractor={keyExtractor}
@@ -265,13 +423,21 @@ const WallpaperScreen = () => {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={ListEmptyComponent}
             ListHeaderComponent={ListHeaderComponent}
+            ListFooterComponent={ListFooterComponent}
             initialNumToRender={6}
             maxToRenderPerBatch={8}
             windowSize={5}
-            onRefresh={fetchWallpapers}
+            onRefresh={() => fetchWallpapers(1, selectedCategory, false)}
             refreshing={loading}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.3}
           />
         </View>
+        {!error && totalPages > 0 && (
+          <Text style={styles.paginationInfo}>
+            Page {currentPage} of {totalPages}
+          </Text>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -309,10 +475,15 @@ const styles = StyleSheet.create({
     color: "#666",
     marginTop: 5,
   },
+  paginationInfo: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 8,
+    textAlign: "center",
+  },
   flatList: {
     paddingHorizontal: 8,
     paddingBottom: 20,
-    paddingTop: 20,
   },
   card: {
     flex: 1,
@@ -386,6 +557,38 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: "#fff",
     fontWeight: "600",
+  },
+  footerContainer: {
+    padding: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+  },
+  footerText: {
+    fontSize: 14,
+    color: "#666",
+    marginLeft: 8,
+  },
+  categoriesContainer: {
+    paddingVertical: 15,
+  },
+  categoryTab: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderRadius: 20,
+    backgroundColor: "#f0f0f0",
+  },
+  selectedCategoryTab: {
+    backgroundColor: "#007AFF",
+  },
+  categoryTabText: {
+    fontSize: 14,
+    color: "#333",
+    fontWeight: "500",
+  },
+  selectedCategoryTabText: {
+    color: "#fff",
   },
 });
 

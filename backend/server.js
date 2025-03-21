@@ -55,13 +55,46 @@ app.post("/api/images", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
+// Express.js route for getting images with category and pagination
 app.get("/api/get-images", async (req, res) => {
   try {
-    const images = await Image.find();
-    res.status(200).json(images);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const category = req.query.category || null;
+
+    // Build query based on whether a category is specified
+    const query = category && category !== "All" ? { category } : {};
+
+    // Find images with the query and pagination
+    const images = await Image.find(query).skip(skip).limit(limit);
+
+    // Count total images that match the query
+    const totalImages = await Image.countDocuments(query);
+
+    console.log(
+      `Found ${images.length} images for category: ${category || "All"}`
+    );
+
+    res.status(200).json({
+      images,
+      totalPages: Math.ceil(totalImages / limit),
+      currentPage: page,
+    });
   } catch (error) {
     console.error("Error fetching images:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// Optional: Endpoint to get all available categories
+app.get("/api/categories", async (req, res) => {
+  try {
+    // Get unique categories from the database
+    const categories = await Image.distinct("category");
+    res.status(200).json({ categories });
+  } catch (error) {
+    console.error("Error fetching categories:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 });

@@ -102,12 +102,10 @@ export default function UploadImage() {
         }
       );
 
-      console.log("Cloudinary Response:", cloudinaryResponse.data);
+      // console.log("Cloudinary Response:", cloudinaryResponse.data);
 
       const imageUrl = cloudinaryResponse.data.secure_url;
       const publicId = cloudinaryResponse.data.public_id;
-
-      console.log("Saving to MongoDB...");
 
       await axios.post(MONGODB_API_ENDPOINT, {
         title,
@@ -239,6 +237,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 20,
     textAlign: "center",
+    marginTop: 40,
   },
   navigationButtons: {
     flexDirection: "row",
